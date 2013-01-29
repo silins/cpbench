@@ -1,0 +1,96 @@
+==Iespējas==
+esošai daudzus engines aptverošai sistēmai pieplagot ClusterPoint
+    https://github.com/brianfrankcooper/YCSB
+    https://github.com/toflames/Wikipedia-noSQL-Benchmark
+        http://www.nosqlbenchmarking.com/2011/03/updated-benchmark-methodology/
+
+Pēc piemēra uztaisīt pamatā Clusterpoint testēšanai savu, kuru vēlāk papildindāt ar interesējošām,
+    tātad modulāru,lai var viegli ieplagot citu engine. Piemēri:
+        https://github.com/mongodb/mongo-perf
+        http://people.apache.org/~mikemccand/lucenebench/
+        https://github.com/felixge/couchdb-benchmarks
+
+==Idializēts plāns==
+uztaisīt javas moduli priekš CP ko iejūt vienā no esošajiem enginiem
+uztaisīt custum python sistēmu, kas tieši CP testē uz mums vajadzīgo visu
+
+
+==testi==
+
+owerhead tester
+    palaiž test run ar visu maksimāli tālu, bet neko nesūta serverim, lai testētu ši gala aizturi
+
+insert
+    empty docs
+    batches of empty doccs
+    inserts docs with fixed field with incermenting integer as value
+    insert ~1k prepared docs
+
+update
+
+query
+
+==TODO==
+
+-pamata rāmis
+    -pamata arhitektūra
+    X -komandrindas parametru/karogu handlings
+    -tredu spawnošana,programmēšana,kontrolēšana,beigšana un datu savākšana no tiem
+    X -loggers
+-tā javas tūļa veidīgi pamata workloads
+-datu apkopošana/glabāšana
+-datu vizuāla reprezentācija
+
+-nepabeigtie ods and ends/todo punkti
+-kārtīga funkcionāla testēšana
+-performances testēšana, profilēšana, optimizācija
+-vēl testa workloads
+
+
+
+javas testera stila prastie testi
+    insert in MB/s or ops/s
+    R/W load (balanced, R heavy), throuhput in ops/s, latency in s
+specifiskki performances test
+    dazadi search varianti (laikam ops/s ..  bet noteiktam query setam)
+
+
+==profiling==
+python2 -m cProfile -o remote.prof taskmaster.py -u tcp://192.168.0.185 -n test_storage --debug
+runsnake remote.prof
+
+
+==remote server==
+root
+password
+ip: ... 81
+
+
+
+
+TODU
+smukāku standartizētu argumentu padošanu taska init
+listu ar urliem, ko sadala pa taskiem
+teesta datu dalīšana starp taskiem
+rezultātu atgriešana
+run load sinhrinizēšana
+padod vēl papildus parametrus, piemēŗam load pickle argumentam faila vārdu
+iespējams parametrus bez connection aprakstošajiem kā konfigurāciju pašā taska?
+ir prep lietas,kas vienreiz jadara! nevar uz visiem taskeim!!
+varbūt taskmaster arī jābūt neatkarīgam procesam?
+opts/s ieroebežojums
+vai ir vēl parametri,ko vajdzētu dot bench,kas visiem taksiem vajdzīgi?
+    kā padod tāska specifiskos?
+task un TaskMaster klasēm taisīt base variantus bench.py
+    tos tad importēs un inheritos task'u faili, papildinot,owerridojot
+        tikai to koa vajaga.
+    base task/taskMaster varētu darboties standalone kā vnk tessts,kas 
+        sūta status tikai vai tml, un ar -t or smlt slēdzi palaižams.
+condition vairāki var izmanto to pašu lock (vs event)
+
+vēl parametri vajadzīgie:
+    connection aprakstšie (url lists)
+    task name
+    paralēlu tasku skaits
+    ops/s ierobežojums (task specific?)
+    taska specifiska datu faila vārds?
