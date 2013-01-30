@@ -88,6 +88,8 @@ divus alternatīvus piegājiesnus:
     taskmaster liek taskus queue 
     katrs workers neatkarīgi sev ģenerē taskus
 partiasit to modulī,ko ar pip importēt (tad python -m bench ...)
+vizualizācijai vnk http serveris,kas dod ģenerētus grafikus uz browzeriem?
+Eventu vietā kkādu vien shared lauku,kas satur komandu?
 
 jādd kontrole:
     beigt beigt workload
@@ -102,3 +104,58 @@ vēl parametri vajadzīgie:
     paralēlu tasku skaits
     ops/s ierobežojums (task specific?)
     taska specifiska datu faila vārds?
+
+
+
+__2__
+TIME:    118.67149806
+OPS:     23600
+AVG LAT: 0.00991603800806
+MAX LAT: 1.95279788971
+MIN LAT: 0.000932931900024
+
+__200__
+TIME:    127.289239168
+OPS:     23600
+AVG LAT: 1.07279970522
+MAX LAT: 127.253911018
+MIN LAT: 0.00110793113708
+
+__200__
+TIME:    113.552797079
+OPS:     4474
+AVG LAT: 2.20706451147
+MAX LAT: 113.454516888
+MIN LAT: 0.00159788131714
+
+__200__
+TIME:    113.443348885
+OPS:     4296
+AVG LAT: 1.09809202788
+MAX LAT: 113.43463707
+MIN LAT: 0.00136804580688
+
+__200__
+TIME:    120.071531057
+OPS:     4296
+AVG LAT: 4.58600205705
+MAX LAT: 120.010153055
+MIN LAT: 0.00180506706238
+
+
+
+        while True:
+            # TODO: conditon lai ieks queue samestos jobus ar ops/s throtletu
+            task = self.task_queue.get()
+            if task == 'POISON': # Poison!
+                self.logger.info('Poisoned!')
+                self.task_queue.task_done()
+                break
+            else:
+                start_time = time.time()
+                self.connection.insert(task, fully_formed=True)
+                end_time = time.time()
+                self.result_queue.put(end_time - start_time)
+                self.task_queue.task_done()
+
+

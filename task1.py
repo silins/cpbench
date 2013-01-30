@@ -1,4 +1,5 @@
-from multiprocessing import Process, Queue, Event
+import multiprocessing
+import Queue
 import time
 import atexit
 
@@ -62,6 +63,7 @@ class WorkerMaster():
         # XXX: for forced termination
         self.workers = []
         self.task_queue = None
+        self.result_queue = None
         atexit.register(self.cleanup)
 
     def cleanup(self):
@@ -69,71 +71,131 @@ class WorkerMaster():
             worker.terminate()
         self.task_queue.close()
         self.task_queue.join_thread()
+        self.result_queue.close()
+        self.result_queue.join_thread()
+
+    def dump_queue(self, q):
+        # XXX: NOT a good way to doo this. Not thread safe.
+        l = []
+        for i in range(q.qsize()):
+            l.append(q.get())
+        return l
+        # XXX: THIS sould be the corect way, bot doesn't work!?!?
+        #l = []
+        #q.put('STOP') # Sentinel
+        #for i in iter(q.get, 'STOP'):
+        #    l.append(i)
+        #return l
 
     def run(self):
         self.common_prep()
 
-        #run_event = Event()
-        #run_event.clear()
+        self.task_queue = multiprocessing.JoinableQueue()
+        self.result_queue = multiprocessing.Queue()
 
-        self.task_queue = Queue()
+        for i in range(self.proc_count):
+            con_url = self.con_urls[i%len(self.con_urls)]
+            con_kwargs = {'document_root_xpath': 'page'}
+            worker = Worker(self.logger, self.task_queue, self.result_queue,
+                            con_url, self.con_args, con_kwargs)
+            worker.deamon = True
+            self.workers.append(worker)
+
+        self.logger.info('Load workers ...')
+        for worker in self.workers:
+            worker.start()
+
         for doc in self.documents:
             self.task_queue.put(doc)
 
         for i in range(self.proc_count):
-            con_url = self.con_urls[i%len(self.con_urls)]
-            worker = Worker(self.logger, self.task_queue, con_url,
-                            self.con_args,
-                            {'document_root_xpath': 'page'})
-            worker.deamon = True
-            self.workers.append(worker)
+            self.task_queue.put(None) # Poison!
 
-        for worker in self.workers:
-            worker.start()
-        self.logger.info('All workers launched!')
+        self.logger.info('Ordering workers to prep ...')
+        for w in self.workers:
+            w.prep_req.set()
 
+        # TODO: get from tasks that prep is done
+        self.logger.info('Ordering workers to run ...')
         start_time = time.time() #XXX
-        for worker in self.workers:
-            worker.join()
+        for w in self.workers:
+            w.run_req.set()
+        self.task_queue.join()
         end_time = time.time() #XXX
-        print('TIME: ' + str(end_time-start_time)) # XXX
+
+        for worker in self.workers:
+            worker.join(0.1)
+
+        results = self.dump_queue(self.result_queue)
+        self.cleanup()
+
+        print('TIME:    ' + str(end_time-start_time)) # XXX
+        print('OPS:     ' + str(len(results))) # XXX
+        print('AVG LAT: ' + str(sum(results)/len(results)))
+        print('MAX LAT: ' + str(max(results)))
+        print('MIN LAT: ' + str(min(results)))
 
     def common_prep(self):
-        con = pycps.Connection(self.con_urls[0], *self.con_args,
-                                document_root_xpath = 'page')
-        con.clear()
-        self.logger.info('Storage cleared')
+        #con = pycps.Connection(self.con_urls[0], *self.con_args,
+        #                        document_root_xpath = 'page')
+        self.logger.info('Clearing storage ...')
+        #con.clear()
+        self.logger.info('Loading document file ...')
         self.documents = load_pickle()
-        self.logger.info('Documents file loaded')
 
 
 ##############################
 # Worker class.
 ##############################
-class Worker(Process):
-    def __init__(self, logger, task_queue, con_url, con_args, con_kwargs):
-        Process.__init__(self)
+class Worker(multiprocessing.Process):
+    def __init__(self, logger, task_queue, result_queue, con_url, con_args,
+                    con_kwargs):
+        multiprocessing.Process.__init__(self)
         self.logger = logger
         self.task_queue = task_queue
+        self.result_queue = result_queue
         self.con_url = con_url
         self.con_args = con_args
         self.con_kwargs = con_kwargs
 
+        self.prep_req = multiprocessing.Event()
+        self.prep_req.clear()
+        self.run_req = multiprocessing.Event()
+        self.run_req.clear()
+        self.stop_req = multiprocessing.Event()
+        self.stop_req.clear()
+
     def run(self):
+        self.prep_req.wait()
         self.prep_load()
+        # TODO: Report prep_ok
+        self.run_req.wait()
         self.run_load()
+        # TODO: Report run_ok
+        return
 
     def prep_load(self):
-        self.connection = pycps.Connection(self.con_url, *self.con_args,
-                                            **self.con_kwargs)
+        #self.connection = pycps.Connection(self.con_url, *self.con_args,
+        #                                    **self.con_kwargs)
         self.logger.info('Connection madde to: ' + self.con_url)
+        return
 
     def run_load(self):
         self.logger.info('Running load ...')
 
+        # TODO: Report status peridocaly?
         while True:
-            try:
-                doc = self.task_queue.get()
-                self.connection.insert(doc, fully_formed=True)
-            except:
+            # TODO: conditon lai ieks queue samestos jobus ar ops/s throtletu
+            task = self.task_queue.get()
+            if task is None: # Poison!
+                self.logger.info('Poisoned!')
+                self.result_queue.close()
+                self.task_queue.task_done()
                 break
+            else:
+                start_time = time.time()
+                #self.connection.insert(task, fully_formed=True)
+                end_time = time.time()
+                self.result_queue.put(end_time-start_time)
+                self.task_queue.task_done()
+        return
