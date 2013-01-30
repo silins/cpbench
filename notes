@@ -70,13 +70,10 @@ ip: ... 81
 
 TODU
 smukāku standartizētu argumentu padošanu taska init
-listu ar urliem, ko sadala pa taskiem
-teesta datu dalīšana starp taskiem
 rezultātu atgriešana
 run load sinhrinizēšana
 padod vēl papildus parametrus, piemēŗam load pickle argumentam faila vārdu
 iespējams parametrus bez connection aprakstošajiem kā konfigurāciju pašā taska?
-ir prep lietas,kas vienreiz jadara! nevar uz visiem taskeim!!
 varbūt taskmaster arī jābūt neatkarīgam procesam?
 opts/s ieroebežojums
 vai ir vēl parametri,ko vajdzētu dot bench,kas visiem taksiem vajdzīgi?
@@ -87,6 +84,17 @@ task un TaskMaster klasēm taisīt base variantus bench.py
     base task/taskMaster varētu darboties standalone kā vnk tessts,kas 
         sūta status tikai vai tml, un ar -t or smlt slēdzi palaižams.
 condition vairāki var izmanto to pašu lock (vs event)
+divus alternatīvus piegājiesnus:
+    taskmaster liek taskus queue 
+    katrs workers neatkarīgi sev ģenerē taskus
+partiasit to modulī,ko ar pip importēt (tad python -m bench ...)
+
+jādd kontrole:
+    beigt beigt workload
+    sākt workload
+jādabū stāvoklis
+    prep pabeigts
+
 
 vēl parametri vajadzīgie:
     connection aprakstšie (url lists)

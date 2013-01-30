@@ -1,6 +1,7 @@
 from multiprocessing import Process, Queue, Event
 import time
 import atexit
+
 import pycps
 
 
@@ -49,9 +50,9 @@ def load_pickle(file_name='enwiki.pickle.gz'):
 
 
 ##############################
-# Task master class.
+# Worker Master class.
 ##############################
-class TaskMaster():
+class WorkerMaster():
     def __init__(self, logger, options):
         self.logger = logger
         self.con_urls = options.url
@@ -59,15 +60,15 @@ class TaskMaster():
         self.proc_count = options.proc_count
 
         # XXX: for forced termination
-        self.tasks = []
-        self.doc_queue = None
+        self.workers = []
+        self.task_queue = None
         atexit.register(self.cleanup)
 
     def cleanup(self):
-        for task in self.tasks:
-            task.terminate()
-        self.doc_queue.close()
-        self.doc_queue.join_thread()
+        for worker in self.workers:
+            worker.terminate()
+        self.task_queue.close()
+        self.task_queue.join_thread()
 
     def run(self):
         self.common_prep()
@@ -75,23 +76,25 @@ class TaskMaster():
         #run_event = Event()
         #run_event.clear()
 
-        self.doc_queue = Queue()
+        self.task_queue = Queue()
         for doc in self.documents:
-            self.doc_queue.put(doc)
+            self.task_queue.put(doc)
 
         for i in range(self.proc_count):
             con_url = self.con_urls[i%len(self.con_urls)]
-            task = Task(self.logger, self.doc_queue, con_url, self.con_args)
-            task.deamon = True
-            self.tasks.append(task)
+            worker = Worker(self.logger, self.task_queue, con_url,
+                            self.con_args,
+                            {'document_root_xpath': 'page'})
+            worker.deamon = True
+            self.workers.append(worker)
 
-        for task in self.tasks:
-            task.start()
-        self.logger.info('All tasks launched!')
+        for worker in self.workers:
+            worker.start()
+        self.logger.info('All workers launched!')
 
         start_time = time.time() #XXX
-        for task in self.tasks:
-            task.join()
+        for worker in self.workers:
+            worker.join()
         end_time = time.time() #XXX
         print('TIME: ' + str(end_time-start_time)) # XXX
 
@@ -105,15 +108,16 @@ class TaskMaster():
 
 
 ##############################
-# Task class.
+# Worker class.
 ##############################
-class Task(Process):
-    def __init__(self, logger, doc_queue, con_url, con_args):
+class Worker(Process):
+    def __init__(self, logger, task_queue, con_url, con_args, con_kwargs):
         Process.__init__(self)
         self.logger = logger
-        self.doc_queue = doc_queue
+        self.task_queue = task_queue
         self.con_url = con_url
         self.con_args = con_args
+        self.con_kwargs = con_kwargs
 
     def run(self):
         self.prep_load()
@@ -121,7 +125,7 @@ class Task(Process):
 
     def prep_load(self):
         self.connection = pycps.Connection(self.con_url, *self.con_args,
-                                            document_root_xpath = 'page')
+                                            **self.con_kwargs)
         self.logger.info('Connection madde to: ' + self.con_url)
 
     def run_load(self):
@@ -129,7 +133,7 @@ class Task(Process):
 
         while True:
             try:
-                doc = self.doc_queue.get()
+                doc = self.task_queue.get()
                 self.connection.insert(doc, fully_formed=True)
             except:
                 break

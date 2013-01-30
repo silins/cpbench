@@ -18,7 +18,7 @@ def main(options, task_name):
 
     task_module = imp.load_module(task_name, *imp.find_module(task_name,
                                     [options.task_path]))
-    task_master = task_module.TaskMaster(logger, options)
+    task_master = task_module.WorkerMaster(logger, options)
     task_master.run()
 
 
