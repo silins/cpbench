@@ -105,57 +105,46 @@ vēl parametri vajadzīgie:
     ops/s ierobežojums (task specific?)
     taska specifiska datu faila vārds?
 
+NORMAL:
 
-
-__2__
-TIME:    118.67149806
+-20-
+TIME:    117.449819088
 OPS:     23600
-AVG LAT: 0.00991603800806
-MAX LAT: 1.95279788971
-MIN LAT: 0.000932931900024
+AVG LAT: 0.0986285794994
+MAX LAT: 5.50594615936
+MIN LAT: 0.00107789039612
 
-__200__
-TIME:    127.289239168
+-20-
+TIME:    113.638156891
 OPS:     23600
-AVG LAT: 1.07279970522
-MAX LAT: 127.253911018
-MIN LAT: 0.00110793113708
+AVG LAT: 0.0954232263666
+MAX LAT: 3.82686686516
+MIN LAT: 0.00111484527588
 
-__200__
-TIME:    113.552797079
-OPS:     4474
-AVG LAT: 2.20706451147
-MAX LAT: 113.454516888
-MIN LAT: 0.00159788131714
+-2-
+TIME:    122.725625992
+OPS:     23600
+AVG LAT: 0.00973627127833
+MAX LAT: 4.65464496613
+MIN LAT: 0.000939130783081
 
-__200__
-TIME:    113.443348885
-OPS:     4296
-AVG LAT: 1.09809202788
-MAX LAT: 113.43463707
-MIN LAT: 0.00136804580688
+-2-
+TIME:    118.904098034
+OPS:     23600
+AVG LAT: 0.00941407164275
+MAX LAT: 1.90130496025
+MIN LAT: 0.000945091247559
 
-__200__
-TIME:    120.071531057
-OPS:     4296
-AVG LAT: 4.58600205705
-MAX LAT: 120.010153055
-MIN LAT: 0.00180506706238
+-200-
+TIME:    112.658304214
+OPS:     23600
+AVG LAT: 0.947390773923
+MAX LAT: 112.044099808
+MIN LAT: 0.00107288360596
 
-
-
-        while True:
-            # TODO: conditon lai ieks queue samestos jobus ar ops/s throtletu
-            task = self.task_queue.get()
-            if task == 'POISON': # Poison!
-                self.logger.info('Poisoned!')
-                self.task_queue.task_done()
-                break
-            else:
-                start_time = time.time()
-                self.connection.insert(task, fully_formed=True)
-                end_time = time.time()
-                self.result_queue.put(end_time - start_time)
-                self.task_queue.task_done()
-
-
+-200-
+TIME:    117.163814068
+OPS:     23600
+AVG LAT: 0.985743670181
+MAX LAT: 117.096217871
+MIN LAT: 0.00127482414246

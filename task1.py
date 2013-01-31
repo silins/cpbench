@@ -60,38 +60,26 @@ class WorkerMaster():
         self.con_args = (options.name, options.user, options.password)
         self.proc_count = options.proc_count
 
-        # XXX: for forced termination
         self.workers = []
-        self.task_queue = None
-        self.result_queue = None
+        self.manager = multiprocessing.Manager()
+        self.task_queue = self.manager.Queue()
+        self.result_queue = self.manager.Queue()
+
         atexit.register(self.cleanup)
 
     def cleanup(self):
         for worker in self.workers:
             worker.terminate()
-        self.task_queue.close()
-        self.task_queue.join_thread()
-        self.result_queue.close()
-        self.result_queue.join_thread()
 
     def dump_queue(self, q):
-        # XXX: NOT a good way to doo this. Not thread safe.
         l = []
-        for i in range(q.qsize()):
-            l.append(q.get())
+        q.put('STOP') # Sentinel
+        for i in iter(q.get, 'STOP'):
+            l.append(i)
         return l
-        # XXX: THIS sould be the corect way, bot doesn't work!?!?
-        #l = []
-        #q.put('STOP') # Sentinel
-        #for i in iter(q.get, 'STOP'):
-        #    l.append(i)
-        #return l
 
     def run(self):
         self.common_prep()
-
-        self.task_queue = multiprocessing.JoinableQueue()
-        self.result_queue = multiprocessing.Queue()
 
         for i in range(self.proc_count):
             con_url = self.con_urls[i%len(self.con_urls)]
@@ -136,10 +124,10 @@ class WorkerMaster():
         print('MIN LAT: ' + str(min(results)))
 
     def common_prep(self):
-        #con = pycps.Connection(self.con_urls[0], *self.con_args,
-        #                        document_root_xpath = 'page')
+        con = pycps.Connection(self.con_urls[0], *self.con_args,
+                                document_root_xpath = 'page')
         self.logger.info('Clearing storage ...')
-        #con.clear()
+        con.clear()
         self.logger.info('Loading document file ...')
         self.documents = load_pickle()
 
@@ -175,8 +163,8 @@ class Worker(multiprocessing.Process):
         return
 
     def prep_load(self):
-        #self.connection = pycps.Connection(self.con_url, *self.con_args,
-        #                                    **self.con_kwargs)
+        self.connection = pycps.Connection(self.con_url, *self.con_args,
+                                            **self.con_kwargs)
         self.logger.info('Connection madde to: ' + self.con_url)
         return
 
@@ -189,12 +177,11 @@ class Worker(multiprocessing.Process):
             task = self.task_queue.get()
             if task is None: # Poison!
                 self.logger.info('Poisoned!')
-                self.result_queue.close()
                 self.task_queue.task_done()
                 break
             else:
                 start_time = time.time()
-                #self.connection.insert(task, fully_formed=True)
+                self.connection.insert(task, fully_formed=True)
                 end_time = time.time()
                 self.result_queue.put(end_time-start_time)
                 self.task_queue.task_done()
