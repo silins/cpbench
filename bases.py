@@ -185,11 +185,11 @@ class Worker(multiprocessing.Process):
                 break
             else:
                 start_time = time.time()
-                self.connection.insert(task, fully_formed=True)
-                end_time = time.time()
                 try:
-                    self.result_queue.put(end_time-start_time)
+                    self.connection.insert(task, fully_formed=True)
                 except pycps.CPSError as e:
                     self.logger.warn(e)
+                end_time = time.time()
+                self.result_queue.put(end_time-start_time)
                 self.task_queue.task_done()
         return
